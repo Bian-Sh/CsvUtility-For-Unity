@@ -101,7 +101,7 @@ namespace zFramework.Extension
         /// <param name="path">csv 路径</param>
         public static void Write<T>(List<T> target, string path)
         {
-            var fields = typeof(T).GetFields();
+            var fields = typeof(T).GetFields().Where(f => !f.IsDefined(typeof(CsvIgnoreAttribute))).ToArray();
             StringBuilder sb = new();
             for (int i = 0; i < fields.Length; i++)
             {
