@@ -99,6 +99,17 @@ namespace Tests
             Assert.AreEqual("4,1.1,6.6,1928,1088", lines[3]);
         }
 
+        [Test]
+        public void CheckCsvIgnore()
+        {
+            var target = new DisplayConfiguration {name="test", index = 4, size_x = 1.1f, size_y = 6.6f, width = 1928, height = 1088 };
+            CsvUtility.Write(target, testCsvPath, "index", KeyinType.Append);
+            var lines = File.ReadAllLines(testCsvPath);
+            Assert.AreEqual("index,size_x,size_y,width,height", lines[0]);
+            Assert.AreEqual("4,1.1,6.6,1928,1088", lines[3]);
+        }
+
+
         [TearDown]
         public void TearDown()
         {
@@ -108,6 +119,8 @@ namespace Tests
 
     public class DisplayConfiguration
     {
+        [CsvIgnore]
+        public string name;
         public int index;
         public float size_x;
         public float size_y;
@@ -115,7 +128,8 @@ namespace Tests
         public int height;
         public override string ToString()
         {
-            return @$"index = {index}
+            return @$"name = {name}
+index = {index}
 size_x = {size_x}
 size_y = {size_y}
 width = {width}
