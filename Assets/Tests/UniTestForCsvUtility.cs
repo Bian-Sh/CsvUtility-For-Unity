@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using Assert = NUnit.Framework.Assert;
-using static zFramework.Extension.CsvUtility;
 using zFramework.Extension;
 
 namespace Tests
@@ -21,7 +20,7 @@ namespace Tests
         [Test]
         public void TestReadAll()
         {
-            var result = Read<DisplayConfiguration>(testCsvPath);
+            List<DisplayConfiguration> result = CsvUtility.Read<DisplayConfiguration>(testCsvPath);
             Assert.AreEqual(2, result.Count);
             Assert.AreEqual(0, result[0].index);
             Assert.AreEqual(2.5f, result[0].size_x);
@@ -42,7 +41,7 @@ namespace Tests
                 new DisplayConfiguration { index = 2, size_x = 4.5f, size_y = 4.9f, width = 1922, height = 1082 },
                 new DisplayConfiguration { index = 3, size_x = 5.5f, size_y = 5.9f, width = 1923, height = 1083 }
             };
-            Write(data, testCsvPath);
+            CsvUtility.Write(data, testCsvPath);
 
             var lines = File.ReadAllLines(testCsvPath);
             Assert.AreEqual("index,size_x,size_y,width,height", lines[0]);
@@ -53,7 +52,7 @@ namespace Tests
         [Test]
         public void TestReadWithFilter()
         {
-            var result = Read<DisplayConfiguration>(testCsvPath, "index", 1);
+            DisplayConfiguration result = CsvUtility.Read<DisplayConfiguration>(testCsvPath, "index", 1);
             Assert.IsNotNull(result);
             Assert.AreEqual(1, result.index);
             Assert.AreEqual(3.5f, result.size_x);
@@ -66,7 +65,7 @@ namespace Tests
         public void TestFromCsvOverwrite()
         {
             var target = new DisplayConfiguration() { index = 1 };
-            FromCsvOverwrite(testCsvPath, target, "index");
+            CsvUtility.FromCsvOverwrite(testCsvPath, target, "index");
             Assert.AreEqual(1, target.index);
             Assert.AreEqual(3.5f, target.size_x);
             Assert.AreEqual(3.9f, target.size_y);
@@ -79,7 +78,7 @@ namespace Tests
         {
             var target = new DisplayConfiguration { index = 1, size_x = 4.5f, size_y = 4.9f, width = 1925, height = 1085 };
 
-            Write(target, testCsvPath, "index", KeyinType.Update);
+            CsvUtility.Write(target, testCsvPath, "index", KeyinType.Update);
 
             var lines = File.ReadAllLines(testCsvPath);
             Assert.AreEqual("index,size_x,size_y,width,height", lines[0]);
@@ -87,7 +86,18 @@ namespace Tests
             Assert.AreEqual("1,4.5,4.9,1925,1085", lines[2]);
         }
 
+        [Test]
+        public void TestWriteAppend()
+        {
+            var target = new DisplayConfiguration { index = 4, size_x = 1.1f, size_y = 6.6f, width = 1928, height = 1088 };
+            CsvUtility.Write(target, testCsvPath, "index", KeyinType.Append);
 
+            var lines = File.ReadAllLines(testCsvPath);
+            Assert.AreEqual("index,size_x,size_y,width,height", lines[0]);
+            Assert.AreEqual("0,2.5,2.9,1920,1080", lines[1]);
+            Assert.AreEqual("1,3.5,3.9,1921,1081", lines[2]);
+            Assert.AreEqual("4,1.1,6.6,1928,1088", lines[3]);
+        }
 
         [TearDown]
         public void TearDown()
