@@ -14,7 +14,7 @@ Unity 2021.3.16f1
 # 功能简介
 1. 简单来说本工具支持读取所有行，读取指定行，根据csv数据更新指定对象，根据指定对象更新或者新增csv数据。
 
-    Simply put, this tool supports reading all rows, reading specified rows, updating specified objects based on csv data, and updating or adding csv data based on specified objects.
+    Simply put, this tool supports reading all rows, reading specified row, updating specified object based on csv data, and updating or adding csv data based on specified object.
 
  2. 支持使用 [CsvIgnoreAttribute] 标记不需要处理的字段。
 
@@ -34,13 +34,13 @@ Unity 2021.3.16f1
     If the data volume is too large, in order to avoid the main thread from being stuck, the following operations can be performed in the Task.
 
 
->1. 读取 csv 文件内容到指定的对象列表
+>1. 读取 csv 文件内容到指定的对象列表 Read csv file content to specified object list
 
 ```csharp
 List<DisplayConfiguration> result = CsvUtility.Read<DisplayConfiguration>(testCsvPath);
 ```
 
->2. 将指定的对象列表存储成 csv
+>2. 将指定的对象列表存储成 csv 文件 Store the specified object list as a csv file
 
 ```csharp
  var data = new List<DisplayConfiguration>
@@ -52,7 +52,7 @@ List<DisplayConfiguration> result = CsvUtility.Read<DisplayConfiguration>(testCs
 
 ```
 
->3. 更新给定的对象中的数据
+>3. 更新给定的对象中的数据 Update the data in the given object
 
  ```csharp
 
@@ -62,28 +62,30 @@ List<DisplayConfiguration> result = CsvUtility.Read<DisplayConfiguration>(testCs
 ```
 
 
->4. 根据指定的对象更新或者新增 csv 数据
+>4. 根据指定的对象更新或者新增 csv 数据 Update or add csv data based on the specified object
 
 ```csharp
 //更新数据，会根据指定的字段和值查找到对应的行，然后更新该行的数据
+// Update, will find the corresponding row according to the specified field and value, and then update the data of that row
 
  var target = new DisplayConfiguration { index = 1, size_x = 4.5f, size_y = 4.9f, width = 1925, height = 1085 };
  CsvUtility.Write(target, testCsvPath, "index", KeyinType.Update);
 
 //新增数据，会在 csv 的最后一行新增一行数据，如果指定的字段的值在 csv 中已经存在，则会抛出异常
+// Append Line, will add a new line of data at the end of the csv. If the value of the specified field already exists in the csv, an exception will be thrown
 
  var target = new DisplayConfiguration { index = 4, size_x = 1.1f, size_y = 6.6f, width = 1928, height = 1088 };
  CsvUtility.Write(target, testCsvPath, "index", KeyinType.Append);
 
 ```
 
->5. 根据指定字段和值获取指定行的数据并返回一个对象
+>5. 根据指定字段和值获取指定行的数据并返回一个对象 Get the data of the specified row according to the specified field and value and return an object
 
 ```csharp
 DisplayConfiguration result = CsvUtility.Read<DisplayConfiguration>(testCsvPath, "index", 1);
 ```
 
->6. 支持通过 CsvIgnoreAttribute 标记不需要处理的字段
+>6. 支持通过 CsvIgnoreAttribute 标记不需要处理的字段 Support marking fields that do not need to be processed through CsvIgnoreAttribute
 
 ```csharp
   public class DisplayConfiguration
