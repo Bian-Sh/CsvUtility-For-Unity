@@ -101,11 +101,14 @@ namespace zFramework.Extension
         /// <param name="path">csv 路径</param>
         public static void Write<T>(List<T> target, string path)
         {
-            var fields = typeof(T).GetFields().Where(f => !f.IsDefined(typeof(CsvIgnoreAttribute))).ToArray();
+            var fields = typeof(T).GetFields()
+                .Where(f => !f.IsDefined(typeof(CsvIgnoreAttribute)))
+                .Select(v => v.Name)
+                .ToArray();
             StringBuilder sb = new();
             for (int i = 0; i < fields.Length; i++)
             {
-                sb.Append(fields[i].Name);
+                sb.Append(fields[i]);
                 if (i < fields.Length - 1)
                 {
                     sb.Append(",");
@@ -114,22 +117,7 @@ namespace zFramework.Extension
             sb.AppendLine();
             foreach (var item in target)
             {
-                for (int i = 0; i < fields.Length; i++)
-                {
-                    var value = fields[i].GetValue(item);
-                    if (value != null && value.ToString().Contains(","))
-                    {
-                        sb.Append("\"" + value + "\"");
-                    }
-                    else
-                    {
-                        sb.Append(value);
-                    }
-                    if (i < fields.Length - 1)
-                    {
-                        sb.Append(",");
-                    }
-                }
+                GenerateCSVData(item, fields, sb);
                 sb.AppendLine();
             }
             File.WriteAllText(path, sb.ToString());
@@ -162,7 +150,8 @@ namespace zFramework.Extension
                     found = true;
                     if (keyinType == KeyinType.Update)
                     {
-                        lines[i] = GenerateCSVData(target, headers);
+                        var sb = GenerateCSVData(target, headers);
+                        lines[i] = sb.ToString();
                     }
                     else
                     {
@@ -241,15 +230,16 @@ namespace zFramework.Extension
             }
             return target;
         }
-        private static string GenerateCSVData<T>(T target, string[] headers)
+        private static StringBuilder GenerateCSVData<T>(T target, string[] headers, StringBuilder sb = default)
         {
-            StringBuilder sb = new();
+            sb ??= new();
             for (int j = 0; j < headers.Length; j++)
             {
                 var field = typeof(T).GetField(headers[j]);
+                var ignore = field?.GetCustomAttribute<CsvIgnoreAttribute>(false);
                 if (field != null)
                 {
-                    var value = field.GetValue(target);
+                    var value = ignore == null ? field.GetValue(target) : default;//对于标记 CsvIgnoreAttribute 的字段，如果CSV存在则写入默认值
                     if (value != null && value.ToString().Contains(","))
                     {
                         sb.Append("\"" + value + "\"");
@@ -264,7 +254,7 @@ namespace zFramework.Extension
                     }
                 }
             }
-            return sb.ToString();
+            return sb;
         }
         #endregion
     }
