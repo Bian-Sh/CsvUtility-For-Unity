@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
+using UnityEngine;
 
 namespace zFramework.Extension
 {
@@ -23,18 +24,20 @@ namespace zFramework.Extension
         {
             var lines = ReadAllLines(file);
             var result = new List<T>();
-            if (lines?.Length <= 0)
+            if (lines?.Length <= 1)
             {
-                throw new FileLoadException($"CSV 文件{Path.GetFileNameWithoutExtension(file)}不含任何数据，请为 csv 文件添加有效数据！\n文件路径：{file}");
+                throw new FileLoadException($"CSV 文件 {Path.GetFileNameWithoutExtension(file)}数据不足以支持读取，请为 csv 文件添加有效数据！ \n文件路径： {file}");
             }
             string[] headers = ParseLine(lines[0]);
+            var map = GetFieldInfoMap<T>();
             for (int i = 1; i < lines.Length; i++)
             {
                 var values = ParseLine(lines[i]);
-                result.Add(SetObjectFieldData<T>(headers, values));
+                result.Add(SetObjectFieldData<T>(headers, values, map));
             }
             return result;
         }
+
 
         /// <summary>
         /// 从CSV文件中读取筛选器`filter`匹配`filterValue`的一个对象，并返回该对象.
@@ -47,22 +50,29 @@ namespace zFramework.Extension
         public static T Read<T>(string file, string filter, object filterValue) where T : new()
         {
             var lines = ReadAllLines(file);
+            if (lines.Length <= 1) // 数据量不够不予处理
+            {
+                throw new FileLoadException($"CSV 文件 {Path.GetFileNameWithoutExtension(file)}数据量不足以支持读取，请为 csv 文件添加有效数据！ \n文件路径： {file}");
+            }
             string[] headers = ParseLine(lines[0]);
             if (!headers.Contains(filter))
             {
                 throw new Exception($"CSV 表头中没找到用于断言的字段 {filter} ,请指定正确的 CSV 和数据类型！");
             }
             int headerIndex = Array.IndexOf(headers, filter);
+
             for (int i = 1; i < lines.Length; i++)
             {
                 var values = ParseLine(lines[i]);
                 if (values[headerIndex].Equals(filterValue.ToString()))
                 {
-                    return SetObjectFieldData<T>(headers, values);
+                    var map = GetFieldInfoMap<T>();
+                    return SetObjectFieldData<T>(headers, values, map);
                 }
             }
             return default;
         }
+
 
         /// <summary>
         /// 从 CSV 中读取 filter 断言的行的数据并对指定的对象填充
@@ -70,46 +80,61 @@ namespace zFramework.Extension
         /// <typeparam name="T">指定类型</typeparam>
         /// <param name="target">目标对象</param>
         /// <param name="filter">用于确定取哪一行的字段名称</param>
-        /// <param name="path">csv 文件路径</param>
+        /// <param name="file">csv 文件路径</param>
         /// <exception cref="Exception">XXX</exception>
-        public static void FromCsvOverwrite<T>(string path, T target, string filter) where T : new()
+        public static void FromCsvOverwrite<T>(string file, T target, string filter) where T : new()
         {
-            var lines = ReadAllLines(path);
+            if (null == target)
+            {
+                throw new ArgumentNullException("传入的对象不得为空!");
+            }
+            var lines = ReadAllLines(file);
+            var fileName = Path.GetFileNameWithoutExtension(file);
+            if (lines.Length <= 1) // 数据量不够不予处理
+            {
+                throw new FileLoadException($"CSV 文件 {fileName}数据量不足以支持读取，请为 csv 文件添加有效数据！ \n文件路径： {file}");
+            }
             string[] headers = ParseLine(lines[0]);
             if (!headers.Contains(filter))
             {
                 throw new Exception($"CSV 表头中没找到用于断言的字段 {filter} ,请指定正确的 CSV 和数据类型！");
             }
+            var map = GetFieldInfoMap<T>();
             int headerIndex = Array.IndexOf(headers, filter);
-            for (int i = 1; i < lines.Length; i++)
+            if (map.TryGetValue(headers[headerIndex], out var field))
             {
-                var values = ParseLine(lines[i]);
-                if (values[headerIndex].Equals(target.GetType().GetField(filter).GetValue(target).ToString()))
+                for (int i = 1; i < lines.Length; i++)
                 {
-                    SetObjectFieldData(headers, values, target);
-                    break;
+                    var values = ParseLine(lines[i]);
+                    if (values[headerIndex].Equals(field.GetValue(target).ToString()))
+                    {
+                        SetObjectFieldData(headers, values, map, target);
+                        break;
+                    }
                 }
+            }
+            else
+            {
+                throw new Exception($"请留意，CSV 文件 {fileName} 表头信息与类型 {typeof(T).Name} 成员（含别名信息）均不匹配！ ");
             }
         }
 
 
         /// <summary>
-        /// 将一组实例写入csv文件
+        /// 将一组实例写入csv文件，如果存在则覆盖
         /// </summary>
         /// <typeparam name="T">实例类型</typeparam>
         /// <param name="target">将要保存的实例</param>
         /// <param name="path">csv 路径</param>
-        public static void Write<T>(List<T> target, string path)
+        public static void Write<T>(List<T> target, string path) where T : new()
         {
-            var fields = typeof(T).GetFields()
-                .Where(f => !f.IsDefined(typeof(CsvIgnoreAttribute)))
-                .Select(v => v.Name)
-                .ToArray();
+            var map = GetFieldInfoMap<T>();
+            var headers = map.Keys.ToArray();
             StringBuilder sb = new();
-            for (int i = 0; i < fields.Length; i++)
+            for (int i = 0; i < headers.Length; i++)
             {
-                sb.Append(fields[i]);
-                if (i < fields.Length - 1)
+                sb.Append(headers[i]);
+                if (i < headers.Length - 1)
                 {
                     sb.Append(",");
                 }
@@ -117,11 +142,12 @@ namespace zFramework.Extension
             sb.AppendLine();
             foreach (var item in target)
             {
-                GenerateCSVData(item, fields, sb);
+                GenerateCSVData(item, headers, map, sb);
                 sb.AppendLine();
             }
-            File.WriteAllText(path, sb.ToString());
+            Save(path, sb.ToString());
         }
+
 
         /// <summary>
         /// 将给定的类型T写入CSV文件。
@@ -131,47 +157,65 @@ namespace zFramework.Extension
         /// <param name="path">CSV文件的路径。</param>
         /// <param name="filter">筛选CSV文件中数据的过滤器。<see cref="KeyinType.Update"/> 模式下用于查找，<see cref="KeyinType.Append"/>  模式下用于去重</param>
         /// <param name="keyinType">数据键入的方式。</param>
-        public static void Write<T>(T target, string path, string filter, KeyinType keyinType)
+        public static void Write<T>(T target, string path, string filter, KeyinType keyinType) where T : new()
         {
             var lines = ReadAllLines(path);
+            var fileName = Path.GetFileNameWithoutExtension(path);
+            if (lines.Length <= 1 && keyinType == KeyinType.Update)
+            {
+                Debug.LogError($"CSV 文件 {fileName}没有数据可供更新，请为 csv 文件添加有效数据！ \n文件路径： {path}");
+                return;
+            }
+            var map = GetFieldInfoMap<T>();
+            if (lines.Length == 0)
+            {
+                Array.Resize(ref lines, 1);
+                lines[0] = string.Join(",", map.Keys);
+            }
             string[] headers = ParseLine(lines[0]);
             if (!headers.Contains(filter))
             {
                 throw new Exception($"用于断言的字段 {filter} 在 CSV 表头中没找到,请指定正确的 CSV 文件和正确的数据类型！");
             }
-
             int headerIndex = Array.IndexOf(headers, filter);
             bool found = false;
-            for (int i = 1; i < lines.Length; i++)
+            if (map.TryGetValue(headers[headerIndex], out var field))
             {
-                var values = ParseLine(lines[i]);
-                if (values[headerIndex].Equals(target.GetType().GetField(filter).GetValue(target).ToString()))
+                for (int i = 1; i < lines.Length; i++)
                 {
-                    found = true;
+                    var values = ParseLine(lines[i]);
+                    if (values[headerIndex].Equals(field.GetValue(target).ToString()))
+                    {
+                        found = true;
+                        if (keyinType == KeyinType.Update)
+                        {
+                            var sb = GenerateCSVData(target, headers, map);
+                            lines[i] = sb.ToString();
+                        }
+                        else
+                        {
+                            throw new Exception("指定行数据已存在,如需更新数据请使用 KeyinType.Update");
+                        }
+                        break;
+                    }
+                }
+                if (!found)
+                {
                     if (keyinType == KeyinType.Update)
                     {
-                        var sb = GenerateCSVData(target, headers);
-                        lines[i] = sb.ToString();
+                        throw new Exception("指定行数据不存在,无法完成数据的更新，如需新增数据请使用 KeyinType.Append");
                     }
                     else
                     {
-                        throw new Exception("指定行数据已存在,如需更新数据请使用 KeyinType.Update");
+                        lines[^1] += "\n" + GenerateCSVData(target, headers, map);
                     }
-                    break;
                 }
+                File.WriteAllLines(path, lines, Encoding.UTF8);
             }
-            if (!found)
+            else
             {
-                if (keyinType == KeyinType.Update)
-                {
-                    throw new Exception("指定行数据不存在,无法完成数据的更新，如需新增数据请使用 KeyinType.Append");
-                }
-                else
-                {
-                    lines[lines.Length - 1] += "\n" + GenerateCSVData(target, headers);
-                }
+                throw new Exception($"请留意，CSV 文件 {fileName} 表头信息与类型 {typeof(T).Name} 成员（含别名信息）均不匹配！ ");
             }
-            File.WriteAllLines(path, lines);
         }
         #region Assistant Function
         private static string[] ReadAllLines(string file)
@@ -209,37 +253,38 @@ namespace zFramework.Extension
             result.Add(currentValue.ToString());
             return result.ToArray();
         }
-        private static T SetObjectFieldData<T>(string[] headers, string[] values, T target = default) where T : new()
+        private static T SetObjectFieldData<T>(string[] headers, string[] values, Dictionary<string, FieldInfo> map, T target = default) where T : new()
         {
-            target ??= new();
-            for (int j = 0; j < headers.Length; j++)
+            target ??= new T();
+
+            for (int i = 0; i < headers.Length; i++)
             {
-                var field = typeof(T).GetField(headers[j]);
+                if (!map.ContainsKey(headers[i]))
+                    continue;
+
+                var fieldInfo = map[headers[i]];
+
                 try
                 {
-                    var ignore = field?.GetCustomAttribute<CsvIgnoreAttribute>(false);
-                    if (field != null && ignore == null)
-                    {
-                        field.SetValue(target, Convert.ChangeType(values[j], field.FieldType));
-                    }
+                    fieldInfo.SetValue(target, Convert.ChangeType(values[i], fieldInfo.FieldType));
                 }
                 catch (Exception)
                 {
-                    throw new InvalidCastException($"{nameof(CsvUtility)}: 字段 {headers[j]} 指定的数据{values[j]} 不是 {field.FieldType} 类型，请修改csv中数据！");
+                    throw new InvalidCastException($"{nameof(CsvUtility)}: 字段 {headers[i]} 指定的数据{values[i]} 不是 {fieldInfo.FieldType} 类型，请修改csv中数据！");
                 }
             }
             return target;
         }
-        private static StringBuilder GenerateCSVData<T>(T target, string[] headers, StringBuilder sb = default)
+
+        // 必须传入 headers ，否则无法判断csv 列的顺序，无法判断 csv 中忽略的列
+        private static StringBuilder GenerateCSVData<T>(T target, string[] headers, Dictionary<string, FieldInfo> map, StringBuilder sb = default)
         {
             sb ??= new();
-            for (int j = 0; j < headers.Length; j++)
+            for (int i = 0; i < headers.Length; i++)
             {
-                var field = typeof(T).GetField(headers[j]);
-                var ignore = field?.GetCustomAttribute<CsvIgnoreAttribute>(false);
-                if (field != null)
+                if (map.TryGetValue(headers[i], out var field))
                 {
-                    var value = ignore == null ? field.GetValue(target) : default;//对于标记 CsvIgnoreAttribute 的字段，如果CSV存在则写入默认值
+                    var value = field.GetValue(target);
                     if (value != null && value.ToString().Contains(","))
                     {
                         sb.Append("\"" + value + "\"");
@@ -248,14 +293,37 @@ namespace zFramework.Extension
                     {
                         sb.Append(value);
                     }
-                    if (j < headers.Length - 1)
+                    if (i < headers.Length - 1)
                     {
                         sb.Append(",");
                     }
                 }
+                else //如果 csv 中列名在类型中不存在，则忽略该列，直接跳过
+                {
+                    sb.Append(",");
+                }
             }
             return sb;
         }
+        // 过滤带有 CsvIgnoreAttribute 属性的字段
+        // 创建一个字典来存储字段名称或别名与 FieldInfo之间的映射关系
+        // 约定：字段名称或别名必须与 csv 表头中的字段名称一致
+        private static Dictionary<string, FieldInfo> GetFieldInfoMap<T>() where T : new()
+        {
+            return typeof(T).GetFields()
+                   .Where(f => f.GetCustomAttribute<CsvIgnoreAttribute>() == null)
+                   .ToDictionary(f => f.GetCustomAttribute<ColumnAttribute>()?.name ?? f.Name, f => f);
+        }
+        private static void Save(string path, string content)
+        {
+            var folder = Path.GetDirectoryName(path);
+            if (!Directory.Exists(folder))
+            {
+                Directory.CreateDirectory(folder);
+            }
+            File.WriteAllText(path, content, Encoding.UTF8);
+        }
+
         #endregion
     }
 
@@ -268,5 +336,12 @@ namespace zFramework.Extension
 
     [AttributeUsage(AttributeTargets.Field)]
     public class CsvIgnoreAttribute : Attribute { }
+    [AttributeUsage(AttributeTargets.Field)]
+    public class ColumnAttribute : Attribute
+    {
+        public string name;
+        public ColumnAttribute(string name) => this.name = name;
+    }
+
     #endregion
 }
