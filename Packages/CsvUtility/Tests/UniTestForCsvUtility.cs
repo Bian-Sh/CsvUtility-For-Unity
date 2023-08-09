@@ -176,8 +176,45 @@ namespace Tests
             Assert.AreEqual(",2,4.5,4.9,1925,1085", lines[3]);
         }
 
+        [Test]
+        public void TestSaveColumnAliasName()
+        {
+            testCsvPath = Path.Combine(Path.GetTempPath(), "test.csv");
+            var list = new List<DisplayInfo>
+            {
+            new DisplayInfo { name = "display1", index = 0, size_x = 2.5f, size_y = 2.9f, width = 1920, height = 1080 },
+            new DisplayInfo { name = "display2", index = 1, size_x = 3.5f, size_y = 3.9f, width = 1921, height = 1081 },
+            };
+            CsvUtility.Write(list, testCsvPath);
 
+            var lines = File.ReadAllLines(testCsvPath);
+            Assert.AreEqual("display,index,size_x,size_y,width,height", lines[0]);
+            Assert.AreEqual("display1,0,2.5,2.9,1920,1080", lines[1]);
+            Assert.AreEqual("display2,1,3.5,3.9,1921,1081", lines[2]);
+        }
 
+        [Test]
+        public void TestLoadColumnAliasName()
+        {
+            testCsvPath = Path.Combine(Path.GetTempPath(), "test.csv");
+            var csvdata = "display,index,size_x,size_y,width,height\ndisplay1,0,2.5,2.9,1920,1080\ndisplay2,1,3.5,3.9,1921,1081";
+            File.WriteAllText(testCsvPath,csvdata);
+
+            var list = CsvUtility.Read<DisplayInfo>(testCsvPath);
+            Assert.AreEqual(2, list.Count);
+            Assert.AreEqual("display1", list[0].name);
+            Assert.AreEqual(0, list[0].index);
+            Assert.AreEqual(2.5f, list[0].size_x);
+            Assert.AreEqual(2.9f, list[0].size_y);
+            Assert.AreEqual(1920, list[0].width);
+            Assert.AreEqual(1080, list[0].height);
+            Assert.AreEqual("display2", list[1].name);
+            Assert.AreEqual(1, list[1].index);
+            Assert.AreEqual(3.5f, list[1].size_x);
+            Assert.AreEqual(3.9f, list[1].size_y);
+            Assert.AreEqual(1921, list[1].width);
+            Assert.AreEqual(1081, list[1].height);
+        }
 
         [TearDown]
         public void TearDown()
@@ -189,6 +226,26 @@ namespace Tests
     public class DisplayConfiguration
     {
         [CsvIgnore]
+        public string name;
+        public int index;
+        public float size_x;
+        public float size_y;
+        public int width;
+        public int height;
+        public override string ToString()
+        {
+            return @$"name = {name}
+index = {index}
+size_x = {size_x}
+size_y = {size_y}
+width = {width}
+height = {height}";
+        }
+    }
+
+    public class DisplayInfo
+    {
+        [Column("display")]
         public string name;
         public int index;
         public float size_x;
