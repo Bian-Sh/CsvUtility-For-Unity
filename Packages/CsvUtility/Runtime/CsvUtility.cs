@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using UnityEngine;
@@ -89,7 +88,7 @@ namespace zFramework.Extension
                 throw new ArgumentNullException("传入的对象不得为空!");
             }
             var lines = ReadAllLines(file);
-            var fileName = Path.GetFileNameWithoutExtension(file);
+            var fileName = Path.GetFileName(file);
             if (lines.Length <= 1) // 数据量不够不予处理
             {
                 throw new FileLoadException($"CSV 文件 {fileName}数据量不足以支持读取，请为 csv 文件添加有效数据！ \n文件路径： {file}");
@@ -103,14 +102,21 @@ namespace zFramework.Extension
             int headerIndex = Array.IndexOf(headers, filter);
             if (map.TryGetValue(headers[headerIndex], out var field))
             {
-                for (int i = 1; i < lines.Length; i++)
+                var filtervalue = field.GetValue(target).ToString();
+                var values = lines.Select(line => ParseLine(line))
+                                                    .Where(arr => arr[headerIndex].Equals(filtervalue))
+                                                    .ToArray();
+                if (values?.Length <= 0)
                 {
-                    var values = ParseLine(lines[i]);
-                    if (values[headerIndex].Equals(field.GetValue(target).ToString()))
+                    Debug.LogWarning($"请留意，CSV 文件 {fileName} 中未找到 {field.Name} = {filtervalue} 的条目，请确信数据是否匹配！");
+                }
+                else
+                {
+                    if (values?.Length > 1)
                     {
-                        SetObjectFieldData(headers, values, map, target);
-                        break;
+                        Debug.LogWarning($"请留意，CSV 文件 {fileName} 中未找到 {values.Length} 条 {field.Name} = {filtervalue} 的条目，取第一条！");
                     }
+                    SetObjectFieldData(headers, values[0], map, target);
                 }
             }
             else
@@ -256,14 +262,11 @@ namespace zFramework.Extension
         private static T SetObjectFieldData<T>(string[] headers, string[] values, Dictionary<string, FieldInfo> map, T target = default) where T : new()
         {
             target ??= new T();
-
             for (int i = 0; i < headers.Length; i++)
             {
                 if (!map.ContainsKey(headers[i]))
                     continue;
-
                 var fieldInfo = map[headers[i]];
-
                 try
                 {
                     fieldInfo.SetValue(target, Convert.ChangeType(values[i], fieldInfo.FieldType));
@@ -323,7 +326,6 @@ namespace zFramework.Extension
             }
             File.WriteAllText(path, content, Encoding.UTF8);
         }
-
         #endregion
     }
 
@@ -342,6 +344,5 @@ namespace zFramework.Extension
         public string name;
         public ColumnAttribute(string name) => this.name = name;
     }
-
     #endregion
 }
