@@ -4,7 +4,7 @@
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "come.bshsf.zframework"
+        "com.bshsf.csvutility"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
