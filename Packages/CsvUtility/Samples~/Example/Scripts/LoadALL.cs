@@ -11,14 +11,13 @@ namespace zFramework.Examples
             "Load all CSV data into a list.";
         public override void Execute()
         {
-            var file = Path.Combine(Application.persistentDataPath, "la.csv");
             var csv = "a,bb,c,d,e\n1,2,3.1,true,11\n4,5,6.1,false,22\n7,8,9.0,true,33";
-            File.WriteAllText(file, csv);
+            System.IO.File.WriteAllText(File, csv);
 
             // test load specify one where a equal 1
             // e must equal default value 0, because it is ignored
             // return null if not find
-            var arr = CsvUtility.Read<A>(file);
+            var arr = CsvUtility.Read<A>(File);
             foreach (var item in arr)
             {
                 Debug.Log($" a = {item.a} , b = {item.b}, c = {item.c} , d = {item.d}, e = {item.e}");

@@ -12,7 +12,6 @@ namespace zFramework.Examples
             "Save a group of objects to a .csv file";
         public override void Execute()
         {
-            var file = Path.Combine(Application.persistentDataPath, "a.csv");
             var list = new List<A>
         {
             new A
@@ -38,13 +37,13 @@ namespace zFramework.Examples
             }
         };
 
-            CsvUtility.Write(list, file);
+            CsvUtility.Write(list, File);
 #if UNITY_EDITOR
-            UnityEditor.EditorUtility.RevealInFinder(file);
+            UnityEditor.EditorUtility.RevealInFinder(File);
             Debug.Log($"{nameof(SaveToCSV)}: check the csv file ~");
 #endif
             // test load
-            var list2 = CsvUtility.Read<A>(file);
+            var list2 = CsvUtility.Read<A>(File);
             foreach (var item in list2)
             {
                 Debug.Log($" a = {item.a} , b = {item.b}, c = {item.c} , d = {item.d}");

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -25,106 +26,85 @@ namespace zFramework.Extension
             var result = new List<T>();
             if (lines?.Length <= 1)
             {
-                throw new FileLoadException($"CSV 文件 {Path.GetFileNameWithoutExtension(file)}数据不足以支持读取，请为 csv 文件添加有效数据！ \n文件路径： {file}");
+                throw new FileLoadException($"{Path.GetFileName(file)} 数据不足以支持读取，请为 csv 文件添加有效数据！ \n文件路径： {file}");
             }
             string[] headers = ParseLine(lines[0]);
             var map = GetFieldInfoMap<T>();
             for (int i = 1; i < lines.Length; i++)
             {
                 var values = ParseLine(lines[i]);
-                result.Add(SetObjectFieldData<T>(headers, values, map));
+                result.Add(ToObject<T>(headers, values, map));
             }
             return result;
         }
 
 
         /// <summary>
-        /// 从CSV文件中读取筛选器`filter`匹配`filterValue`的一个对象，并返回该对象.
+        /// 从 CSV 文件中读取一个对象，需要提供一个 lamba 表达式来匹配目标对象
         /// </summary>
-        /// <typeparam name="T">对象类型</typeparam>
-        /// <param name="file">文件路径</param>
-        /// <param name="filter">筛选器字段名</param>
-        /// <param name="filterValue">筛选器字段值</param>
-        /// <returns>一个筛选器匹配的对象</returns>
-        public static T Read<T>(string file, string filter, object filterValue) where T : new()
+        /// <typeparam name="T">读取的对象类型</typeparam>
+        /// <param name="file">CSV 文件路径</param>
+        /// <param name="predicate">用于匹配目标对象的 lamba 表达式</param>
+        /// <returns>一个匹配的 T 类型对象，如果不存在则返回 default</returns>
+        /// <exception cref="FileNotFoundException">CSV 文件未找到</exception>  
+        /// <exception cref="FileLoadException">CSV 文件数据量或路径不正确</exception>  
+        /// <exception cref="InvalidCastException">CSV 文件数据类型转换失败</exception>  
+        public static T Read<T>(string file, [NotNull] Predicate<T> predicate) where T : new()
         {
             var lines = ReadAllLines(file);
+            var filename = Path.GetFileName(file);
             if (lines.Length <= 1) // 数据量不够不予处理
             {
-                throw new FileLoadException($"CSV 文件 {Path.GetFileNameWithoutExtension(file)}数据量不足以支持读取，请为 csv 文件添加有效数据！ \n文件路径： {file}");
+                throw new FileLoadException($"{filename} 数据量不足以支持读取，请为 csv 文件添加有效数据！ \n文件路径： {file}");
             }
             string[] headers = ParseLine(lines[0]);
-            if (!headers.Contains(filter))
+            var map = GetFieldInfoMap<T>();
+            var target = new T();
+            var arr = lines.Select(line => ParseLine(line))
+                .Skip(1) //跳过 header
+                .Select(values => ToObject<T>(headers, values, map))
+                .Where(v => predicate?.Invoke(v) == true)
+                .ToArray();
+            switch (arr.Length)
             {
-                throw new Exception($"CSV 表头中没找到用于断言的字段 {filter} ,请指定正确的 CSV 和数据类型！");
+                case 0:
+                    Debug.LogWarning($"{filename} 中不存在匹配的对象！ \n文件路径： {file}");
+                    return default;
+                case > 1:
+                    Debug.LogWarning($"{filename} 中存在多个匹配的对象，取第一个！ \n文件路径： {file}");
+                    break;
             }
-            int headerIndex = Array.IndexOf(headers, filter);
-
-            for (int i = 1; i < lines.Length; i++)
-            {
-                var values = ParseLine(lines[i]);
-                if (values[headerIndex].Equals(filterValue.ToString()))
-                {
-                    var map = GetFieldInfoMap<T>();
-                    return SetObjectFieldData<T>(headers, values, map);
-                }
-            }
-            return default;
+            return arr[0];
         }
 
 
         /// <summary>
-        /// 从 CSV 中读取 filter 断言的行的数据并对指定的对象填充
+        /// 从 CSV 文件中读取数据，并根据传递的 T 类型的对象的属性来填充它。
         /// </summary>
-        /// <typeparam name="T">指定类型</typeparam>
-        /// <param name="target">目标对象</param>
-        /// <param name="filter">用于确定取哪一行的字段名称</param>
-        /// <param name="file">csv 文件路径</param>
-        /// <exception cref="Exception">XXX</exception>
-        public static void FromCsvOverwrite<T>(string file, T target, string filter) where T : new()
+        /// <typeparam name="T">要填充的对象的类型。</typeparam>
+        /// <param name="file">CSV 文件的路径。</param>
+        /// <param name="target">要填充的对象。</param>
+        /// <param name="predicate">可选的断言，用于指定匹配对象。</param>
+        /// <exception cref="ArgumentNullException">传入的对象不得为空</exception>
+        /// <exception cref="FileLoadException">CSV 文件数据量不足以支持读取</exception>
+        /// <exception cref="FileNotFoundException">未找到相应的文件</exception>
+        /// <exception cref="InvalidCastException">类型转换出现错误</exception>
+        public static void FromCsvOverwrite<T>(string file, [NotNull] T target, [NotNull] Predicate<T> predicate) where T : new()
         {
             if (null == target)
             {
                 throw new ArgumentNullException("传入的对象不得为空!");
             }
-            var lines = ReadAllLines(file);
-            var fileName = Path.GetFileName(file);
-            if (lines.Length <= 1) // 数据量不够不予处理
+            if (null == predicate)
             {
-                throw new FileLoadException($"CSV 文件 {fileName}数据量不足以支持读取，请为 csv 文件添加有效数据！ \n文件路径： {file}");
+                throw new ArgumentNullException("predicate 必须有意义！");
             }
-            string[] headers = ParseLine(lines[0]);
-            if (!headers.Contains(filter))
+            var temp = Read<T>(file, predicate);
+            if (temp != null)
             {
-                throw new Exception($"CSV 表头中没找到用于断言的字段 {filter} ,请指定正确的 CSV 和数据类型！");
-            }
-            var map = GetFieldInfoMap<T>();
-            int headerIndex = Array.IndexOf(headers, filter);
-            if (map.TryGetValue(headers[headerIndex], out var field))
-            {
-                var filtervalue = field.GetValue(target).ToString();
-                var values = lines.Select(line => ParseLine(line))
-                                                    .Where(arr => arr[headerIndex].Equals(filtervalue))
-                                                    .ToArray();
-                if (values?.Length <= 0)
-                {
-                    Debug.LogWarning($"请留意，CSV 文件 {fileName} 中未找到 {field.Name} = {filtervalue} 的条目，请确信数据是否匹配！");
-                }
-                else
-                {
-                    if (values?.Length > 1)
-                    {
-                        Debug.LogWarning($"请留意，CSV 文件 {fileName} 中未找到 {values.Length} 条 {field.Name} = {filtervalue} 的条目，取第一条！");
-                    }
-                    SetObjectFieldData(headers, values[0], map, target);
-                }
-            }
-            else
-            {
-                throw new Exception($"请留意，CSV 文件 {fileName} 表头信息与类型 {typeof(T).Name} 成员（含别名信息）均不匹配！ ");
+                Clone(temp, target);
             }
         }
-
 
         /// <summary>
         /// 将一组实例写入csv文件，如果存在则覆盖
@@ -148,7 +128,7 @@ namespace zFramework.Extension
             sb.AppendLine();
             foreach (var item in target)
             {
-                GenerateCSVData(item, headers, map, sb);
+                ToCSV(item, headers, map, sb);
                 sb.AppendLine();
             }
             Save(path, sb.ToString());
@@ -156,79 +136,95 @@ namespace zFramework.Extension
 
 
         /// <summary>
-        /// 将给定的类型T写入CSV文件。
+        /// 将给定的类型T写入CSV文件
         /// </summary>
         /// <typeparam name="T">要写入CSV文件的类型。</typeparam>
         /// <param name="target">要写入CSV文件的对象。</param>
         /// <param name="path">CSV文件的路径。</param>
-        /// <param name="filter">筛选CSV文件中数据的过滤器。<see cref="KeyinType.Update"/> 模式下用于查找，<see cref="KeyinType.Append"/>  模式下用于去重</param>
+        /// <param name="predicate">筛选CSV文件中数据的过滤器。<see cref="KeyinType.Update"/> 模式下用于查找，<see cref="KeyinType.Append"/>  模式下用于去重</param>
         /// <param name="keyinType">数据键入的方式。</param>
-        public static void Write<T>(T target, string path, string filter, KeyinType keyinType) where T : new()
+        public static void Write<T>([NotNull] T target, string path, [NotNull] Predicate<T> predicate, KeyinType keyinType) where T : new()
         {
+            if (null == target)
+            {
+                throw new ArgumentNullException("传入的对象不得为空!");
+            }
+            if (null == predicate)
+            {
+                throw new ArgumentNullException("predicate 必须有意义！");
+            }
             var lines = ReadAllLines(path);
-            var fileName = Path.GetFileNameWithoutExtension(path);
-            if (lines.Length <= 1 && keyinType == KeyinType.Update)
-            {
-                Debug.LogError($"CSV 文件 {fileName}没有数据可供更新，请为 csv 文件添加有效数据！ \n文件路径： {path}");
-                return;
-            }
+            var fileName = Path.GetFileName(path);
             var map = GetFieldInfoMap<T>();
-            if (lines.Length == 0)
+
+            if (lines.Length == 0 && keyinType == KeyinType.Append) // header 都没有? 追加模式下自主写入
             {
-                Array.Resize(ref lines, 1);
-                lines[0] = string.Join(",", map.Keys);
+                lines = new string[] { string.Join(",", map.Keys) };
             }
-            string[] headers = ParseLine(lines[0]);
-            if (!headers.Contains(filter))
+
+            var headers = ParseLine(lines[0]);
+            if (lines.Length == 1) //处理只有 header 的情况
             {
-                throw new Exception($"用于断言的字段 {filter} 在 CSV 表头中没找到,请指定正确的 CSV 文件和正确的数据类型！");
+                if (keyinType == KeyinType.Append) // 未找到且为追加模式
+                {
+                    lines[^1] += $"\n{ToCSV(target, headers, map)}"; //  追加到文件末尾
+                    File.WriteAllLines(path, lines);
+                    return;
+                }
+                else
+                {
+                    throw new Exception($"{fileName} 找不到特征数据,无法完成更新，新增数据请使用 KeyinType.Append！\n文件路径： {path}");
+                }
             }
-            int headerIndex = Array.IndexOf(headers, filter);
-            bool found = false;
-            if (map.TryGetValue(headers[headerIndex], out var field))
+
+            // 为了做断言而加载完整的数据，这也是为啥推荐使用 sqlite 平替的原因
+            // 在数据量较小的情况下，方便就好，还要什么自行车
+            var datas = Read<T>(path);
+            var index = datas.FindIndex(predicate);
+
+            if (index == -1)
             {
-                for (int i = 1; i < lines.Length; i++)
+                if (keyinType == KeyinType.Append) // 未找到且为追加模式
                 {
-                    var values = ParseLine(lines[i]);
-                    if (values[headerIndex].Equals(field.GetValue(target).ToString()))
-                    {
-                        found = true;
-                        if (keyinType == KeyinType.Update)
-                        {
-                            var sb = GenerateCSVData(target, headers, map);
-                            lines[i] = sb.ToString();
-                        }
-                        else
-                        {
-                            throw new Exception("指定行数据已存在,如需更新数据请使用 KeyinType.Update");
-                        }
-                        break;
-                    }
+                    lines[^1] += $"\n{ToCSV(target, headers, map)}"; //  追加到文件末尾
                 }
-                if (!found)
+                else
                 {
-                    if (keyinType == KeyinType.Update)
-                    {
-                        throw new Exception("指定行数据不存在,无法完成数据的更新，如需新增数据请使用 KeyinType.Append");
-                    }
-                    else
-                    {
-                        lines[^1] += "\n" + GenerateCSVData(target, headers, map);
-                    }
+                    throw new Exception($"{fileName} 找不到特征数据,无法完成更新，新增数据请使用 KeyinType.Append！\n文件路径： {path}");
                 }
-                File.WriteAllLines(path, lines, Encoding.UTF8);
             }
             else
             {
-                throw new Exception($"请留意，CSV 文件 {fileName} 表头信息与类型 {typeof(T).Name} 成员（含别名信息）均不匹配！ ");
+                if (keyinType == KeyinType.Update)   //  找到了且为更新模式
+                {
+                    // 仅更新指定行数据，避免 CSVIgnore 标记影响到 csv 文件
+                    //  由于datas 是跳过了 header 的，因此 lines 的索引需要 +1
+                    lines[index + 1] = ToCSV(target, headers, map).ToString();
+                }
+                else
+                {
+                    throw new Exception("指定行数据已存在,如需更新数据请使用 KeyinType.Update");
+                }
             }
+            File.WriteAllLines(path, lines);
         }
         #region Assistant Function
+
+        private static void Clone<T>(T source, T target)
+        {
+            var fields = typeof(T).GetFields(BindingFlags.Instance | BindingFlags.Public)
+                .Where(v => v.GetCustomAttribute<CsvIgnoreAttribute>() == null); // CSVIgnore 标记的字段不进行复制
+            foreach (var field in fields)
+            {
+                field.SetValue(target, field.GetValue(source));
+            }
+        }
+
         private static string[] ReadAllLines(string file)
         {
             if (!File.Exists(file))
             {
-                throw new FileNotFoundException($"CSV 文件{Path.GetFileNameWithoutExtension(file)}不存在，请检查文件路径！\n文件路径：{file}");
+                throw new FileNotFoundException($"{Path.GetFileName(file)} 不存在，请检查文件路径！\n文件路径：{file}");
             }
             var temp = Path.GetTempFileName();
             File.Copy(file, temp, true);
@@ -259,7 +255,7 @@ namespace zFramework.Extension
             result.Add(currentValue.ToString());
             return result.ToArray();
         }
-        private static T SetObjectFieldData<T>(string[] headers, string[] values, Dictionary<string, FieldInfo> map, T target = default) where T : new()
+        private static T ToObject<T>(string[] headers, string[] values, Dictionary<string, FieldInfo> map, T target = default) where T : new()
         {
             target ??= new T();
             for (int i = 0; i < headers.Length; i++)
@@ -280,7 +276,7 @@ namespace zFramework.Extension
         }
 
         // 必须传入 headers ，否则无法判断csv 列的顺序，无法判断 csv 中忽略的列
-        private static StringBuilder GenerateCSVData<T>(T target, string[] headers, Dictionary<string, FieldInfo> map, StringBuilder sb = default)
+        private static StringBuilder ToCSV<T>(T target, string[] headers, Dictionary<string, FieldInfo> map, StringBuilder sb = default)
         {
             sb ??= new();
             for (int i = 0; i < headers.Length; i++)

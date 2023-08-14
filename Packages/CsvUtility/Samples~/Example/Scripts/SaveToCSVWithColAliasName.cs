@@ -15,7 +15,6 @@ namespace zFramework.Examples
 
         public override void Execute()
         {
-            var file = Path.Combine(Application.persistentDataPath, "c.csv");
             var list = new List<A>
         {
             new A
@@ -41,13 +40,13 @@ namespace zFramework.Examples
             }
         };
 
-            CsvUtility.Write(list, file);
+            CsvUtility.Write(list, File);
 #if UNITY_EDITOR
-            UnityEditor.EditorUtility.RevealInFinder(file);
+            UnityEditor.EditorUtility.RevealInFinder(File);
 #endif
 
             // test load
-            var list2 = CsvUtility.Read<A>(file);
+            var list2 = CsvUtility.Read<A>(File);
             foreach (var item in list2)
             {
                 Debug.Log($" a = {item.a} , b = {item.b}, c = {item.c} , d = {item.d}");

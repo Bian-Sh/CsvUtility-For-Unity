@@ -75,7 +75,7 @@ namespace Tests
         [Test]
         public void TestReadWithFilter()
         {
-            DisplayConfiguration result = CsvUtility.Read<DisplayConfiguration>(testCsvPath, "index", 1);
+            DisplayConfiguration result = CsvUtility.Read<DisplayConfiguration>(testCsvPath, v => v.index == 1);
             Assert.IsNotNull(result);
             Assert.AreEqual(1, result.index);
             Assert.AreEqual(3.5f, result.size_x);
@@ -87,8 +87,9 @@ namespace Tests
         [Test]
         public void TestFromCsvOverwrite()
         {
-            var target = new DisplayConfiguration() { index = 1 };
-            CsvUtility.FromCsvOverwrite(testCsvPath, target, nameof(target.index));
+            var index = 1;
+            var target = new DisplayConfiguration() { index = index };
+            CsvUtility.FromCsvOverwrite(testCsvPath, target, v => v.index == index);
             Assert.AreEqual(1, target.index);
             Assert.AreEqual(3.5f, target.size_x);
             Assert.AreEqual(3.9f, target.size_y);
@@ -99,8 +100,9 @@ namespace Tests
         [Test]
         public void TestFromCsvOverwriteWhenHasFieldMarkedIgnore()
         {
-            var target = new DisplayConfiguration() { name = "test", index = 1 };
-            CsvUtility.FromCsvOverwrite(testCsvPath, target, nameof(target.index));
+            var index = 1;
+            var target = new DisplayConfiguration() { name = "test", index = index };
+            CsvUtility.FromCsvOverwrite(testCsvPath, target, v => v.index == index);
             Assert.AreEqual("test", target.name);
 
             testCsvPath = Path.Combine(Path.GetTempPath(), "test.csv");
@@ -111,9 +113,10 @@ namespace Tests
         [Test]
         public void TestWriteUpdate()
         {
-            var target = new DisplayConfiguration { index = 1, size_x = 4.5f, size_y = 4.9f, width = 1925, height = 1085 };
+            var index = 1;
+            var target = new DisplayConfiguration { index = index, size_x = 4.5f, size_y = 4.9f, width = 1925, height = 1085 };
 
-            CsvUtility.Write(target, testCsvPath, "index", KeyinType.Update);
+            CsvUtility.Write(target, testCsvPath, v => v.index == index, KeyinType.Update);
 
             var lines = File.ReadAllLines(testCsvPath);
             Assert.AreEqual("index,size_x,size_y,width,height", lines[0]);
@@ -124,8 +127,9 @@ namespace Tests
         [Test]
         public void TestWriteAppend()
         {
-            var target = new DisplayConfiguration { index = 4, size_x = 1.1f, size_y = 6.6f, width = 1928, height = 1088 };
-            CsvUtility.Write(target, testCsvPath, "index", KeyinType.Append);
+            var index = 4;
+            var target = new DisplayConfiguration { index = index, size_x = 1.1f, size_y = 6.6f, width = 1928, height = 1088 };
+            CsvUtility.Write(target, testCsvPath, v => v.index == index, KeyinType.Append);
 
             var lines = File.ReadAllLines(testCsvPath);
             Assert.AreEqual("index,size_x,size_y,width,height", lines[0]);
@@ -137,8 +141,9 @@ namespace Tests
         [Test]
         public void CheckCsvIgnore()
         {
-            var target = new DisplayConfiguration { name = "test", index = 4, size_x = 1.1f, size_y = 6.6f, width = 1928, height = 1088 };
-            CsvUtility.Write(target, testCsvPath, "index", KeyinType.Append);
+            var index = 4;
+            var target = new DisplayConfiguration { name = "test", index = index, size_x = 1.1f, size_y = 6.6f, width = 1928, height = 1088 };
+            CsvUtility.Write(target, testCsvPath, v => v.index == index, KeyinType.Append);
             var lines = File.ReadAllLines(testCsvPath);
             Assert.AreEqual("index,size_x,size_y,width,height", lines[0]);
             Assert.AreEqual("4,1.1,6.6,1928,1088", lines[3]);
@@ -150,9 +155,10 @@ namespace Tests
             testCsvPath = Path.Combine(Path.GetTempPath(), "test.csv");
             File.WriteAllText(testCsvPath, "name,index,size_x,size_y,width,height\ndisplay1,0,2.5,2.9,1920,1080\ndisplay2,1,3.5,3.9,1921,1081");
 
-            var target = new DisplayConfiguration { name = "aaa", index = 1, size_x = 4.5f, size_y = 4.9f, width = 1925, height = 1085 };
+            var index = 1;
+            var target = new DisplayConfiguration { name = "aaa", index = index, size_x = 4.5f, size_y = 4.9f, width = 1925, height = 1085 };
 
-            CsvUtility.Write(target, testCsvPath, "index", KeyinType.Update);
+            CsvUtility.Write(target, testCsvPath, v => v.index == index, KeyinType.Update);
 
             var lines = File.ReadAllLines(testCsvPath);
             Assert.AreEqual("name,index,size_x,size_y,width,height", lines[0]);
@@ -164,10 +170,10 @@ namespace Tests
         {
             testCsvPath = Path.Combine(Path.GetTempPath(), "test.csv");
             File.WriteAllText(testCsvPath, "name,index,size_x,size_y,width,height\ndisplay1,0,2.5,2.9,1920,1080\ndisplay2,1,3.5,3.9,1921,1081");
+            var index = 2;
+            var target = new DisplayConfiguration { name = "aaa", index = index, size_x = 4.5f, size_y = 4.9f, width = 1925, height = 1085 };
 
-            var target = new DisplayConfiguration { name = "aaa", index = 2, size_x = 4.5f, size_y = 4.9f, width = 1925, height = 1085 };
-
-            CsvUtility.Write(target, testCsvPath, "index", KeyinType.Append);
+            CsvUtility.Write(target, testCsvPath, v => v.index == index, KeyinType.Append);
 
             var lines = File.ReadAllLines(testCsvPath);
             Assert.AreEqual("name,index,size_x,size_y,width,height", lines[0]);
@@ -198,7 +204,7 @@ namespace Tests
         {
             testCsvPath = Path.Combine(Path.GetTempPath(), "test.csv");
             var csvdata = "display,index,size_x,size_y,width,height\ndisplay1,0,2.5,2.9,1920,1080\ndisplay2,1,3.5,3.9,1921,1081";
-            File.WriteAllText(testCsvPath,csvdata);
+            File.WriteAllText(testCsvPath, csvdata);
 
             var list = CsvUtility.Read<DisplayInfo>(testCsvPath);
             Assert.AreEqual(2, list.Count);
