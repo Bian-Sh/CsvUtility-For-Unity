@@ -11,20 +11,22 @@ namespace zFramework.Examples
             "Load data with a = 1 into instance A, modify and update it to the CSV file.";
         public override void Execute()
         {
-            var file = Path.Combine(Application.persistentDataPath, "up.csv");
             var csv = "a,bb,c,d,e\n1,2,3.1,true,11\n4,5,6.1,false,22\n7,8,9.0,true,33";
-            File.WriteAllText(file, csv);
+            System.IO.File.WriteAllText(File, csv);
 
             // test load specify one where a equal 1
             // e must equal default value 0, because it is ignored
             // return null if not find
-            var item = CsvUtility.Read<A>(file, nameof(A.a), 1);
+            var item = CsvUtility.Read<A>(File, v => v.a == 1);
+            Debug.Log($"Before csv = {csv}");
             Debug.Log($"Before : a = {item.a} , b = {item.b}, c = {item.c} , d = {item.d}, e = {item.e}");
             item.b = "bbb";
             item.c = 5.55f;
-            CsvUtility.Write(item,file,nameof(A.a), KeyinType.Update);
+            CsvUtility.Write(item, File, v => v.a == 1, KeyinType.Update);
             // load again
-            item = CsvUtility.Read<A>(file, nameof(A.a), 1);
+            item = CsvUtility.Read<A>(File, v => v.a == 1);
+            var csv2 = System.IO.File.ReadAllText(File);
+            Debug.Log($"Before csv = {csv2}");
             Debug.Log($"After : a = {item.a} , b = {item.b}, c = {item.c} , d = {item.d}, e = {item.e}");
         }
 

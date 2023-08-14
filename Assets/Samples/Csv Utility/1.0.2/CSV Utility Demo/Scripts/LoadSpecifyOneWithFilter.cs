@@ -11,21 +11,19 @@ namespace zFramework.Examples
             "Load the specified line, in this example, separate loading data a = 1, bb = 5, e = 33 into object A.";
         public override void Execute()
         {
-            var file = Path.Combine(Application.persistentDataPath, "la.csv");
             var csv = "a,bb,c,d,e\n1,2,3.1,true,11\n4,5,6.1,false,22\n7,8,9.0,true,33";
-            File.WriteAllText(file, csv);
+            System.IO.File.WriteAllText(File, csv);
 
             // test load specify one where a equal 1
-            var item = CsvUtility.Read<A>(file, "a", 1);
+            var item = CsvUtility.Read<A>(File, v => v.a == 1);
             Debug.Log($" a = {item.a} , b = {item.b}, c = {item.c} , d = {item.d}, e = {item.e}");
 
-            // you must use alias name for query , use "bb" instead of "b"
-            item = CsvUtility.Read<A>(file, "bb", 5);
+            item = CsvUtility.Read<A>(File, v => v.b == "5");
             Debug.Log($" a = {item.a} , b = {item.b}, c = {item.c} , d = {item.d}, e = {item.e}");
 
-            // e must equal default value 0, because it is ignored , return null if not find
-            item = CsvUtility.Read<A>(file, "e", 33);
-            Debug.Log($" a = {item.a} , b = {item.b}, c = {item.c} , d = {item.d}, e = {item.e}");
+            // can not use "e" for querying  as "e" always equals to default value 0, because it is ignored , return null 
+            item = CsvUtility.Read<A>(File, v => v.e == 33);
+            Debug.Log($" a = {item?.a} , b = {item?.b}, c = {item?.c} , d = {item?.d}, e = {item?.e} , item is null: {item == null}");
         }
 
         class A

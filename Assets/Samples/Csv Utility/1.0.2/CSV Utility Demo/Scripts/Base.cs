@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace zFramework.Examples
 {
+    using System.IO;
     using System.Threading;
 #if UNITY_EDITOR
     using UnityEditor;
@@ -32,6 +33,7 @@ namespace zFramework.Examples
 
     public abstract class Base : MonoBehaviour
     {
+        public string File => Path.Combine(Application.persistentDataPath, "sample.csv");
         public abstract string Title { get; }
         public abstract string Description { get; }
         public bool IsChineseUser => Thread.CurrentThread.CurrentCulture.Name == "zh-CN";

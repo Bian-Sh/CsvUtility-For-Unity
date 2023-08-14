@@ -1,21 +1,17 @@
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 using UnityEngine;
 using zFramework.Extension;
 namespace zFramework.Examples
 {
-    public class SaveToCSVWithIgnore : Base
+    public class SaveToCSV : Base
     {
         public override string Title { get; } = "Save";
-
         public override string Description =>IsChineseUser?
-            "将一组对象存储到 .csv 文件中，字段标记 [CSVIgnore] 不会被保存,在本例字段 b 被忽略" :
-            "Store a group of objects into a .csv file, and fields marked with [CSVIgnore] will not be saved. In this example, field \"b\" is ignored.";
-
+            "将一组对象存储到 .csv 文件中":
+            "Save a group of objects to a .csv file";
         public override void Execute()
         {
-            var file = Path.Combine(Application.persistentDataPath, "b.csv");
             var list = new List<A>
         {
             new A
@@ -41,12 +37,13 @@ namespace zFramework.Examples
             }
         };
 
-            CsvUtility.Write(list, file);
+            CsvUtility.Write(list, File);
 #if UNITY_EDITOR
-            UnityEditor.EditorUtility.RevealInFinder(file);
+            UnityEditor.EditorUtility.RevealInFinder(File);
+            Debug.Log($"{nameof(SaveToCSV)}: check the csv file ~");
 #endif
             // test load
-            var list2 = CsvUtility.Read<A>(file);
+            var list2 = CsvUtility.Read<A>(File);
             foreach (var item in list2)
             {
                 Debug.Log($" a = {item.a} , b = {item.b}, c = {item.c} , d = {item.d}");
@@ -56,7 +53,6 @@ namespace zFramework.Examples
         class A
         {
             public int a;
-            [CsvIgnore]
             public string b;
             public float c;
             public bool d;
