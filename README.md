@@ -39,34 +39,33 @@ var result = CsvUtility.Read<DisplayConfiguration>(testCsvPath);
 >3. 更新给定的对象中的数据
 
  ```csharp
-
-    var target = new DisplayConfiguration() { index = 1 };
-    CsvUtility.FromCsvOverwrite(testCsvPath, target, nameof(target.index));
-            
+    var index = 1;
+    var target = new DisplayConfiguration() { index = index };
+    CsvUtility.FromCsvOverwrite(testCsvPath, target, v=>v.index == index);
 ```
 
 
 >4. 根据指定的对象更新  csv 数据
 
 ```csharp
-//更新数据，会根据指定的字段和值查找到对应的行，然后更新该行的数据
- var target = new DisplayConfiguration { index = 1, size_x = 4.5f, size_y = 4.9f, width = 1925, height = 1085 };
- CsvUtility.Write(target, testCsvPath, "index", KeyinType.Update);
+ var index = 1;
+ var target = new DisplayConfiguration { index = index, size_x = 4.5f, size_y = 4.9f, width = 1925, height = 1085 };
+ CsvUtility.Write(target, testCsvPath, v=>v.index == index, KeyinType.Update);
 ```
 
 >5. 根据指定的对象新增 csv 数据
 
 ```csharp
 //新增数据，会在 csv 的最后一行新增一行数据，如果指定的字段的值在 csv 中已经存在，则会抛出异常
- var target = new DisplayConfiguration { index = 4, size_x = 1.1f, size_y = 6.6f, width = 1928, height = 1088 };
- CsvUtility.Write(target, testCsvPath, "index", KeyinType.Append);
+ var index = 4;
+ var target = new DisplayConfiguration { index = index, size_x = 1.1f, size_y = 6.6f, width = 1928, height = 1088 };
+ CsvUtility.Write(target, testCsvPath, v=>v.index == index, KeyinType.Append);
+ ```
 
-```
-
->6. 根据指定字段和值获取指定行的数据并返回一个对象 
+>6. 获取 csv 指定数据并返回一个对象 
 
 ```csharp
-var result = CsvUtility.Read<DisplayConfiguration>(testCsvPath, "index", 1);
+var result = CsvUtility.Read<DisplayConfiguration>(testCsvPath, v =>v.index == 1);
 ```
 
 >7. 支持通过 [CsvIgnoreAttribute ] 标记不需要处理的字段 
@@ -151,9 +150,9 @@ var result = CsvUtility.Read<DisplayConfiguration>(testCsvPath);
 >3. Update the data in the given object
 
  ```csharp
-
-    var target = new DisplayConfiguration() { index = 1 };
-    CsvUtility.FromCsvOverwrite(testCsvPath, target, nameof(target.index));
+    var index = 1;
+    var target = new DisplayConfiguration() { index = index };
+    CsvUtility.FromCsvOverwrite(testCsvPath, target, v => v.index == index );
             
 ```
 
@@ -161,24 +160,26 @@ var result = CsvUtility.Read<DisplayConfiguration>(testCsvPath);
 >4. Update csv data based on the specified object
 
 ```csharp
-//Update data, will find the corresponding row according to the specified field and value, and then update the data of that row
- var target = new DisplayConfiguration { index = 1, size_x = 4.5f, size_y = 4.9f, width = 1925, height = 1085 };
- CsvUtility.Write(target, testCsvPath, "index", KeyinType.Update);
+//Update data, will find the correct item that predicate matched, and then update the data of that row
+ var index = 1;
+ var target = new DisplayConfiguration { index = index, size_x = 4.5f, size_y = 4.9f, width = 1925, height = 1085 };
+ CsvUtility.Write(target, testCsvPath, v => v.index == index, KeyinType.Update);
 ```
 
 >5. Add csv data based on the specified object
 
 ```csharp
 //Add data, will add a new line of data at the end of the csv. If the value of the specified field already exists in the csv, an exception will be thrown
- var target = new DisplayConfiguration { index = 4, size_x = 1.1f, size_y = 6.6f, width = 1928, height = 1088 };
- CsvUtility.Write(target, testCsvPath, "index", KeyinType.Append);
+ var index = 4;
+ var target = new DisplayConfiguration { index = index, size_x = 1.1f, size_y = 6.6f, width = 1928, height = 1088 };
+ CsvUtility.Write(target, testCsvPath,  v => v.index == index , KeyinType.Append);
 
 ```
 
 >6. Get the data of the specified row according to the specified field and value and return an object 
 
 ```csharp
-var result = CsvUtility.Read<DisplayConfiguration>(testCsvPath, "index", 1);
+var result = CsvUtility.Read<DisplayConfiguration>(testCsvPath, v => v.index == 1);
 ```
 
 >7. Support marking fields that do not need to be processed through [CsvIgnoreAttribute] 
