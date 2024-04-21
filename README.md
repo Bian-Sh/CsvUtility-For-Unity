@@ -16,6 +16,21 @@ Unity 2021.3.16f1
 7. 支持使用 [ColumnAttribute] 为字段指定别名，csv数据中的列名无需与字段名一致。
 8. 理论上支持所有 .net 开发情景中使用（仅在 Unity 开发、测试）
 
+# 安装方法
+
+### 通过 git url 安装
+
+将 `https://github.com/Bian-Sh/CsvUtility-For-Unity.git?path=Packages/CsvUtility` 拷贝到 UPM （如下图）即可。
+            
+![](./doc/UPM.png)
+
+>1. 需要使用支持 git 包路径查询参数的 Unity 版本（Unity >= 2019.3.4f1，Unity >= 2020.1a21）。
+>
+>2. 对于中国用户来说，失败的可能性很高。
+   
+
+
+
 # 使用方法
 
 >1. 读取 csv 文件内容到指定的对象列表 
@@ -126,6 +141,19 @@ Unity 2021.3.16f1
 6. Supports using [CsvIgnoreAttribute] to mark fields that do not need to be processed.
 7. Supports using [ColumnAttribute] to specify aliases for fields, so that the column names in the csv data do not have to match the field names.
 8. Theoretically supports all .net development scenarios (only developed and tested in Unity)
+
+# Installation
+
+### Install via git URL
+
+You can add `https://github.com/Bian-Sh/CsvUtility-For-Unity.git?path=Packages/CsvUtility` to Package Manager
+
+![](./doc/UPM.png)
+
+> 1. Requires a version of unity that supports path query parameter for git packages (Unity >= 2019.3.4f1, Unity >= 2020.1a21).
+> 
+> 2. There is a high chance of failure for users in China.
+>
 
 # Usage
 
